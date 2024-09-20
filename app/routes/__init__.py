@@ -8,6 +8,7 @@ from .pemasok_routes import pemasok_blueprint
 from .laporanstok_routes import laporanstok_blueprint
 from .kategori_routes import kategori_blueprint
 from .transaksi_routes import transaksi_blueprint
+from .login_routes import login_blueprint
 
 def register_blueprints(app):
     # Daftar semua blueprint di sini
@@ -18,3 +19,4 @@ def register_blueprints(app):
     app.register_blueprint(laporanstok_blueprint, url_prefix='/api/laporanstok')
     app.register_blueprint(kategori_blueprint, url_prefix='/api/kategori')
     app.register_blueprint(transaksi_blueprint, url_prefix='/api/transaksi')
+    app.register_blueprint(login_blueprint, url_prefix='/api/login')
