@@ -1,0 +1,65 @@
+from flask import Blueprint, Response, current_app
+from collections import OrderedDict
+from datetime import datetime
+import json
+
+logaktifitas_blueprint = Blueprint('logaktifitas', __name__)
+
+@logaktifitas_blueprint.route('/getlogaktifitas', methods=['GET'])
+def get_data_aktifitas():
+    try:
+        # Mengambil koneksi MySQL dari konfigurasi Flask
+        conn = current_app.config['MYSQL_CONNECTION']
+        cursor = conn.cursor()
+
+        # Panggil stored procedure
+        cursor.callproc('sp_get_log_aktifitas')
+
+        # Mengambil hasil dari stored procedure
+        results = []
+        for result in cursor.stored_results():
+            results = result.fetchall()
+
+        # Debug print hasil raw
+        print("Raw Results: ", results)
+
+        # Format hasil sebagai JSON dengan urutan kolom yang benar
+        data_aktifitas = []
+        for row in results:
+            date_log = row[4].strftime('%Y-%m-%d %H:%M:%S') if row[4] else None
+            aktifitas = OrderedDict([
+                ('v_id_log', row[0]),                       # ID Aktifitas
+                ('v_id_pengguna', row[1]),                  # ID Pengguna Aktifitas
+                ('v_nama_pengguna', row[2]),                # Nama Pengguna Aktifitas
+                ('v_activity_log', row[3]),                 # Detail Aktifitas
+                ('v_date_log', date_log),                   # Tanggal Aktifitas
+            ])
+            data_aktifitas.append(aktifitas)
+
+        cursor.close()
+
+        # Format hasil akhir dengan tanggal saat ini, status, notification_response, dan data
+        response = OrderedDict([
+            ('status', 200),
+            ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ('notification_response', 'Berhasil Get Log Aktifitas'),
+            ('data', data_aktifitas)
+        ])
+
+        # Use json.dumps to preserve the order of keys
+        response_json = json.dumps(response, ensure_ascii=False, indent=4)
+
+        # Return response with proper content type and status code
+        return Response(response_json, content_type='application/json')
+
+
+    except Exception as e:
+        # Handle error and return a failure response
+        error_response = OrderedDict([
+            ('status', 500),
+            ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ('notification_response', 'Gagal Get Log Aktifitas'),
+            ('error', str(e))
+        ])
+        error_json = json.dumps(error_response, ensure_ascii=False, indent=4)
+        return Response(error_json, content_type='application/json', status=500)
