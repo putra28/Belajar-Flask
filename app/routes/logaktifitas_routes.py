@@ -111,3 +111,98 @@ def get_data_aktifitas():
         ])
         error_json = json.dumps(error_response, ensure_ascii=False, indent=4)
         return Response(error_json, content_type='application/json', status=500)
+    
+@logaktifitas_blueprint.route('/addlogaktifitas', methods=['POST'])
+@token_required
+def add_logaktifitas():
+    try:
+        # Ambil data dari body JSON
+        data = request.json
+        id_pengguna = data.get('p_id_pengguna')
+        aksi_aktifitas = data.get('p_aksi_aktifitas')
+
+        # Mengambil koneksi MySQL dari konfigurasi Flask
+        conn = current_app.config['MYSQL_CONNECTION']
+        cursor = conn.cursor()
+
+        # Panggil stored procedure untuk update data
+        cursor.callproc('sp_log_add', (id_pengguna, aksi_aktifitas))
+        
+        # Commit perubahan
+        conn.commit()
+        cursor.close()
+
+        # Format hasil akhir dengan tanggal saat ini, status, dan notification_response
+        response = OrderedDict([
+            ('status', 200),
+            ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ('notification_response', 'Berhasil Add Data Log-Aktifitas'),
+            ('data', [])
+        ])
+
+        response_json = json.dumps(response, ensure_ascii=False, indent=4)
+
+        return Response(response_json, content_type='application/json')
+
+    except Exception as e:
+        error_response = OrderedDict([
+            ('status', 500),
+            ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ('notification_response', 'Gagal Add Data Log-Aktifitas'),
+            ('error', str(e))
+        ])
+        error_json = json.dumps(error_response, ensure_ascii=False, indent=4)
+        return Response(error_json, content_type='application/json', status=500)
+
+@logaktifitas_blueprint.route('/deletelogaktifitas', methods=['POST'])
+@token_required
+def delete_logaktifitas():
+    try:
+        # Mengambil data JSON dari request body
+        data = request.get_json()
+        id_log = data.get('p_id_log')
+
+        if not id_log:
+            return Response(
+                json.dumps({
+                    'status': 400,
+                    'tanggal': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'notification_response': 'ID Log Required',
+                    'data': []
+                }),
+                content_type='application/json',
+                status=400
+            )
+
+        # Mengambil koneksi MySQL dari konfigurasi Flask
+        conn = current_app.config['MYSQL_CONNECTION']
+        cursor = conn.cursor()
+
+        # Panggil stored procedure untuk menghapus pengguna
+        cursor.callproc('sp_log_delete', (id_log))
+
+        # Commit perubahan ke database
+        conn.commit()
+
+        cursor.close()
+
+        # Format hasil akhir
+        response = OrderedDict([
+            ('status', 200),
+            ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ('notification_response', 'Berhasil Hapus Data Log-Aktifitas'),
+            ('data', [])
+        ])
+
+        return Response(json.dumps(response, ensure_ascii=False, indent=4), content_type='application/json')
+
+    except Exception as e:
+        # Handle error dan kembalikan response kegagalan
+        error_response = OrderedDict([
+            ('status', 500),
+            ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ('notification_response', 'Gagal Hapus Data Log-Aktifitas'),
+            ('error', str(e))
+        ])
+        error_json = json.dumps(error_response, ensure_ascii=False, indent=4)
+        return Response(error_json, content_type='application/json', status=500)

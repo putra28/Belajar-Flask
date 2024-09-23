@@ -115,3 +115,158 @@ def get_data_produk():
         ])
         error_json = json.dumps(error_response, ensure_ascii=False, indent=4)
         return Response(error_json, content_type='application/json', status=500)
+
+# Route untuk menambahkan data
+@produk_blueprint.route('/adddataproduk', methods=['POST'])
+@token_required
+def add_data_produk():
+    try:
+        # Mengambil data dari request JSON
+        data = request.get_json()
+        id_kategori = data.get('p_id_kategori')
+        id_subkategori = data.get('p_id_subkategori')
+        nama_produk = data.get('p_nama_produk')
+        harga_produk = data.get('p_harga_produk')
+
+        # Validasi input
+        if not all([id_kategori, id_subkategori, nama_produk, harga_produk]):
+            return Response(
+                json.dumps(OrderedDict([
+                    ('status', 400),
+                    ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+                    ('notification_response', 'Semua field harus diisi!'),
+                    ('data', [])
+                ]))
+                , content_type='application/json',
+                status=400
+            )
+
+        # Mengambil koneksi MySQL dari konfigurasi Flask
+        conn = current_app.config['MYSQL_CONNECTION']
+        cursor = conn.cursor()
+
+        # Panggil stored procedure untuk menambahkan data
+        cursor.callproc('sp_produk_add', [id_kategori, id_subkategori, nama_produk, harga_produk])
+        conn.commit()  # Commit perubahan
+
+        cursor.close()
+
+        # Format hasil akhir dengan tanggal saat ini, status, notification_response
+        response = OrderedDict([
+            ('status', 200),
+            ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ('notification_response', 'Berhasil Menambahkan Data Produk'),
+            ('data', [])
+        ])
+
+        response_json = json.dumps(response, ensure_ascii=False, indent=4)
+        return Response(response_json, content_type='application/json')
+
+    except Exception as e:
+        # Handle error and return a failure response
+        error_response = OrderedDict([
+            ('status', 500),
+            ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ('notification_response', 'Gagal Menambahkan Data Produk'),
+            ('error', str(e))
+        ])
+        error_json = json.dumps(error_response, ensure_ascii=False, indent=4)
+        return Response(error_json, content_type='application/json', status=500)
+    
+@produk_blueprint.route('/updatedataproduk', methods=['POST'])
+@token_required
+def update_data_produk():
+    try:
+        # Ambil data dari body JSON
+        data = request.json
+        id_produk = data.get('p_id_produk')
+        id_subkategori = data.get('p_id_subkategori')
+        nama_produk = data.get('p_nama_produk')
+        harga_produk = data.get('p_harga_produk')
+        stok_produk = data.get('p_stok_produk')
+
+        # Mengambil koneksi MySQL dari konfigurasi Flask
+        conn = current_app.config['MYSQL_CONNECTION']
+        cursor = conn.cursor()
+
+        # Panggil stored procedure untuk update data
+        cursor.callproc('sp_produk_edit', (id_produk, id_subkategori, nama_produk, harga_produk, stok_produk))
+        
+        # Commit perubahan
+        conn.commit()
+        cursor.close()
+
+        # Format hasil akhir dengan tanggal saat ini, status, dan notification_response
+        response = OrderedDict([
+            ('status', 200),
+            ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ('notification_response', 'Berhasil Update Data Produk'),
+            ('data', [])
+        ])
+
+        response_json = json.dumps(response, ensure_ascii=False, indent=4)
+
+        return Response(response_json, content_type='application/json')
+
+    except Exception as e:
+        error_response = OrderedDict([
+            ('status', 500),
+            ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ('notification_response', 'Gagal Update Data Produk'),
+            ('error', str(e))
+        ])
+        error_json = json.dumps(error_response, ensure_ascii=False, indent=4)
+        return Response(error_json, content_type='application/json', status=500)
+
+@produk_blueprint.route('/deletedataproduk', methods=['POST'])
+@token_required
+def delete_produk():
+    try:
+        # Mengambil data JSON dari request body
+        data = request.get_json()
+        id_produk = data.get('p_id_produk')
+
+        if not id_produk:
+            return Response(
+                json.dumps({
+                    'status': 400,
+                    'tanggal': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'notification_response': 'ID Produk Required',
+                    'data': []
+                }),
+                content_type='application/json',
+                status=400
+            )
+
+        # Mengambil koneksi MySQL dari konfigurasi Flask
+        conn = current_app.config['MYSQL_CONNECTION']
+        cursor = conn.cursor()
+
+        # Panggil stored procedure untuk menghapus pengguna
+        cursor.callproc('sp_pengguna_delete', (id_produk))
+
+        # Commit perubahan ke database
+        conn.commit()
+
+        cursor.close()
+
+        # Format hasil akhir
+        response = OrderedDict([
+            ('status', 200),
+            ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ('notification_response', 'Berhasil Hapus Data Produk'),
+            ('data', [])
+        ])
+
+        return Response(json.dumps(response, ensure_ascii=False, indent=4), content_type='application/json')
+
+    except Exception as e:
+        # Handle error dan kembalikan response kegagalan
+        error_response = OrderedDict([
+            ('status', 500),
+            ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            ('notification_response', 'Gagal Hapus Data Produk'),
+            ('error', str(e))
+        ])
+        error_json = json.dumps(error_response, ensure_ascii=False, indent=4)
+        return Response(error_json, content_type='application/json', status=500)
