@@ -2,10 +2,58 @@ from flask import Blueprint, Response, current_app, request
 from collections import OrderedDict
 from datetime import datetime
 import json
+import jwt
+from functools import wraps
 
 transaksi_blueprint = Blueprint('transaksi', __name__)
 
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization')
+
+        if not token:
+            # Token tidak ditemukan di header
+            error_response = OrderedDict([
+                ('status', 500),
+                ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+                ('notification_response', 'Token Required'),
+                ('data', [])
+            ])
+            error_json = json.dumps(error_response, ensure_ascii=False, indent=4)
+            return Response(error_json, content_type='application/json', status=500)
+
+        try:
+            # Menghapus prefix "Bearer " jika ada
+            token = token.replace('Bearer ', '')
+            # Decode token JWT
+            jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
+        except jwt.ExpiredSignatureError:
+            # Token sudah kadaluwarsa
+            error_response = OrderedDict([
+                ('status', 500),
+                ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+                ('notification_response', 'Token Expired'),
+                ('data', [])
+            ])
+            error_json = json.dumps(error_response, ensure_ascii=False, indent=4)
+            return Response(error_json, content_type='application/json', status=500)
+        except jwt.InvalidTokenError:
+            # Token tidak valid (mungkin telah dimodifikasi)
+            error_response = OrderedDict([
+                ('status', 500),
+                ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+                ('notification_response', 'Token Invalid'),
+                ('data', [])
+            ])
+            error_json = json.dumps(error_response, ensure_ascii=False, indent=4)
+            return Response(error_json, content_type='application/json', status=500)
+
+        return f(*args, **kwargs)
+    return decorated
+
 @transaksi_blueprint.route('/getalldatatransaksi', methods=['GET'])
+@token_required
 def get_data_transaksi():
     try:
         # Mengambil koneksi MySQL dari konfigurasi Flask
@@ -92,6 +140,7 @@ def get_data_transaksi():
     
 
 @transaksi_blueprint.route('/getdatatransaksibykasir', methods=['POST'])
+@token_required
 def get_data_transaksi_by_kasir():
     try:
         # Mengambil parameter dari request JSON

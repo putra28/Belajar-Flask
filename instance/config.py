@@ -4,3 +4,4 @@ class Config:
     MYSQL_PASSWORD = 'root'
     MYSQL_DB = 'db_retail'
     MYSQL_HOST = 'localhost'
+    SECRET_KEY = 'putra280506'

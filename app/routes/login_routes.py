@@ -1,7 +1,8 @@
-from flask import Blueprint, request, Response, current_app
+from flask import Blueprint, request, Response, current_app, jsonify
 from collections import OrderedDict
 from datetime import datetime
 import json
+from app.utils import create_token, verify_token
 
 # Blueprint untuk login
 login_blueprint = Blueprint('login', __name__)
@@ -66,10 +67,12 @@ def login():
                 user_data.append(user_info)
 
             # Format response jika berhasil login
+            token = create_token(username_login)
             response_success = OrderedDict([
                 ('status', 200),
                 ('tanggal', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
                 ('notification_response', f"Berhasil Login"),
+                ('token', f"Bearer {token}"),
                 ('data', user_data)
             ])
 
