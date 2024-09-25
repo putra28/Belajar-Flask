@@ -81,7 +81,7 @@ def get_data_stok():
                 ('stok_semula', row[2]),                    # Kontak pemasok
                 ('perubahan_stok', row[3]),                 # Alamat pemasok
                 ('aksi_stok', row[4]),                      # Alamat pemasok
-                ('v_created_at', created_at),               # Tanggal Laporan
+                ('tanggal_laporan', created_at),               # Tanggal Laporan
             ])
             laporan_stok.append(lapstok)
 
