@@ -3,24 +3,34 @@ from collections import OrderedDict
 from datetime import datetime
 import json
 from app.utils import create_token, verify_token
+from functools import wraps
+import hashlib
 
 # Blueprint untuk login
 login_blueprint = Blueprint('login', __name__)
 
-@login_blueprint.route('/', methods=['POST'])
+@login_blueprint.route('/post', methods=['POST', 'OPTIONS'])
 def login():
+    if request.method == 'OPTIONS':
+        # Respond with 200 for OPTIONS requests
+        return Response(status=200)
     try:
         # Ambil data dari body request
         body = request.get_json()
+
+        # Cetak body request ke terminal untuk debugging
+        print("Data Body JSON:", body)
         username_login = body.get('p_username_login')
         password_login = body.get('p_password_login')
 
+        # Hash password menggunakan SHA256 dan MD5
+        hashed_password = hashlib.md5(hashlib.sha256(password_login.encode()).hexdigest().encode()).hexdigest()
         # Koneksi ke MySQL
         conn = current_app.config['MYSQL_CONNECTION']
         cursor = conn.cursor()
 
         # Panggil stored procedure dengan parameter username dan password
-        cursor.callproc('sp_login_retiel', (username_login, password_login))
+        cursor.callproc('sp_login_retiel', (username_login, hashed_password))
 
         # Ambil hasil dari stored procedure
         result = []
