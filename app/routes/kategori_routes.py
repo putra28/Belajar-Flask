@@ -53,35 +53,52 @@ def token_required(f):
 
 @kategori_blueprint.route('/getdatakategori', methods=['GET'])
 @token_required
-def get_data_kategori():
+def get_data_mainkategori():
     try:
         # Mengamsbil koneksi MySQL dari konfigurasi Flask
         conn = current_app.config['MYSQL_CONNECTION']
         cursor = conn.cursor()
 
-        # Panggil stored procedure
-        cursor.callproc('sp_get_all_kategori')
-
-        # Mengambil hasil dari stored procedure
-        results = []
+        # Panggil stored procedure 
+        cursor.callproc('sp_get_all_mainkategori')
+        kategori_result = []
         for result in cursor.stored_results():
-            results = result.fetchall()
+            kategori_result = result.fetchall()
+
+        cursor.callproc('sp_get_all_subkategori')
+        subkat_result = []
+        for result in cursor.stored_results():
+            subkat_result = result.fetchall()
 
         # Debug print hasil raw
-        print("Raw Results: ", results)
+        print("Kategori Raw Results: ", kategori_result)
+        print("Sub-Kategori Raw Results: ", subkat_result)
 
         # Format hasil sebagai JSON dengan urutan kolom yang benar
         data_kategori = []
-        for row in results:
-            created_at = row[3].strftime('%Y-%m-%d %H:%M:%S') if row[3] else None
-            updated_at = row[4].strftime('%Y-%m-%d %H:%M:%S') if row[4] else None
+        for kategori_row in kategori_result:
+            # Filter details for this transaksi (matching M_idTransaksi)
+            subkategori = []
+            for subkategori_row in subkat_result:
+                if subkategori_row[2] == kategori_row[0]:  # subkategori_row[1] is id_kategori
+                    subkat = OrderedDict([
+                        ('v_id_subkategori', subkategori_row[0]),        # ID Sub-Kategori
+                        ('v_id_kategori', subkategori_row[2]),           # ID Kategori
+                        ('v_nama_subkategori', subkategori_row[1]),      # Nama Sub-Kategori
+                        ('v_created_at', subkategori_row[3].strftime('%Y-%m-%d %H:%M:%S')),            # Created_at
+                        ('v_updated_at', subkategori_row[4].strftime('%Y-%m-%d %H:%M:%S')),            # Updated_at
+                    ])
+                    subkategori.append(subkat)
+
+            # Build transaksi object
             kategori = OrderedDict([
-                ('id_kategori', row[0]),                    # ID Kategori
-                ('name_kategori', row[1]),                  # Nama Kategori 
-                ('name_subkategori', row[2]),               # Nama Subkategori
-                ('v_created_at', created_at),               # Tanggal Dibuat
-                ('v_updated_at', updated_at),               # Tanggal Diubah
+                ('v_id_kategori', kategori_row[0]),                 # ID Transaksi
+                ('v_nama_kategori', kategori_row[1]),               # ID Pengguna
+                ('v_created_at', kategori_row[2].strftime('%Y-%m-%d %H:%M:%S')),  # Created_at
+                ('v_updated_at', kategori_row[3].strftime('%Y-%m-%d %H:%M:%S')),  # Updated_at
+                ('v_subkategori', subkategori)                      # Sub Kategori (from above)
             ])
+
             data_kategori.append(kategori)
 
         cursor.close()

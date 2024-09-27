@@ -74,15 +74,17 @@ def get_data_produk():
         # Format hasil sebagai JSON dengan urutan kolom yang benar
         data_produk = []
         for row in results:
-            created_at = row[6].strftime('%Y-%m-%d %H:%M:%S') if row[6] else None
-            updated_at = row[7].strftime('%Y-%m-%d %H:%M:%S') if row[7] else None
+            created_at = row[8].strftime('%Y-%m-%d %H:%M:%S') if row[8] else None
+            updated_at = row[9].strftime('%Y-%m-%d %H:%M:%S') if row[9] else None
             produk = OrderedDict([
                 ('v_id_produk', row[0]),                     # ID Produk
-                ('v_kategori_produk', row[1]),               # Kategori Produk
-                ('v_subkategori_produk', row[2]),            # Subkategori Produk
-                ('v_nama_produk', row[3]),                   # Nama Produk
-                ('v_harga_produk', int(row[4])),             # Harga Produk
-                ('v_stok_produk', row[5]),                   # Stok Produk
+                ('v_id_kategori', row[1]),                   # ID Kategori Produk
+                ('v_id_subkategori', row[2]),                # ID Subkategori Produk
+                ('v_kategori_produk', row[3]),               # Kategori Produk
+                ('v_subkategori_produk', row[4]),            # Subkategori Produk
+                ('v_nama_produk', row[5]),                   # Nama Produk
+                ('v_harga_produk', int(row[6])),             # Harga Produk
+                ('v_stok_produk', row[7]),                   # Stok Produk
                 ('v_created_at', created_at),                # Tanggal Dibuat
                 ('v_updated_at', updated_at),                # Tanggal Diubah
             ])
@@ -243,7 +245,7 @@ def delete_produk():
         cursor = conn.cursor()
 
         # Panggil stored procedure untuk menghapus pengguna
-        cursor.callproc('sp_pengguna_delete', (id_produk))
+        cursor.callproc('sp_produk_delete', (id_produk,))
 
         # Commit perubahan ke database
         conn.commit()

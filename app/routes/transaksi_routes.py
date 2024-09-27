@@ -78,7 +78,7 @@ def get_data_transaksi():
         # Format hasil sebagai JSON dengan urutan kolom yang benar
         transaksi_data = []
 
-         # Loop through the transaksi_results and build transaksi with corresponding detail_transaksi
+        # Loop through the transaksi_results and build transaksi with corresponding detail_transaksi
         for transaksi_row in transaksi_results:
             # Filter details for this transaksi (matching M_idTransaksi)
             detail_transaksi = []
