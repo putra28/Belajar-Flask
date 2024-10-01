@@ -250,7 +250,7 @@ def delete_kategori():
         cursor = conn.cursor()
 
         # Panggil stored procedure untuk menghapus pengguna
-        cursor.callproc('sp_kategori_delete', (id_kategori))
+        cursor.callproc('sp_kategori_delete', (id_kategori,))
 
         # Commit perubahan ke database
         conn.commit()
@@ -400,7 +400,7 @@ def delete_subkategori():
         cursor = conn.cursor()
 
         # Panggil stored procedure untuk menghapus pengguna
-        cursor.callproc('sp_subkategori_delete', (id_subkategori))
+        cursor.callproc('sp_subkategori_delete', (id_subkategori,))
 
         # Commit perubahan ke database
         conn.commit()
