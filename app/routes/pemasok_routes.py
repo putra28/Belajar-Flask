@@ -68,9 +68,6 @@ def get_data_pemasok():
         for result in cursor.stored_results():
             results = result.fetchall()
 
-        # Debug print hasil raw
-        print("Raw Results: ", results)
-
         # Format hasil sebagai JSON dengan urutan kolom yang benar
         data_pemasok = []
         for row in results:

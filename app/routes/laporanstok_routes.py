@@ -68,20 +68,18 @@ def get_data_stok():
         for result in cursor.stored_results():
             results = result.fetchall()
 
-        # Debug print hasil raw
-        print("Raw Results: ", results)
 
         # Format hasil sebagai JSON dengan urutan kolom yang benar
         laporan_stok = []
         for row in results:
             created_at = row[5].strftime('%Y-%m-%d %H:%M:%S') if row[5] else None
             lapstok = OrderedDict([
-                ('id_stok', row[0]),                        # ID pemasok
-                ('nama_produk', row[1]),                    # Nama pemasok
-                ('stok_semula', row[2]),                    # Kontak pemasok
-                ('perubahan_stok', row[3]),                 # Alamat pemasok
-                ('aksi_stok', row[4]),                      # Alamat pemasok
-                ('tanggal_laporan', created_at),               # Tanggal Laporan
+                ('v_id_stok', row[0]),                        # ID pemasok
+                ('v_nama_produk', row[1]),                    # Nama pemasok
+                ('v_stok_semula', row[2]),                    # Kontak pemasok
+                ('v_perubahan_stok', row[3]),                 # Alamat pemasok
+                ('v_aksi_stok', row[4]),                      # Alamat pemasok
+                ('v_tanggal_laporan', created_at),               # Tanggal Laporan
             ])
             laporan_stok.append(lapstok)
 
