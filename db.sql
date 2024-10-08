@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
--- Host:                         localhost
+-- Host:                         127.0.0.1
 -- Server version:               8.0.30 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.8.0.6908
+-- HeidiSQL Version:             12.1.0.6537
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -240,6 +240,95 @@ BEGIN
             t.id_pengguna = p_id_pengguna;
 
     END IF;
+END//
+DELIMITER ;
+
+-- Dumping structure for procedure db_retail.sp_get_produk_stok_rendah
+DELIMITER //
+CREATE PROCEDURE `sp_get_produk_stok_rendah`()
+BEGIN
+	SELECT p.name_produk
+	FROM tb_produk p
+	ORDER BY p.stock_produk ASC
+	LIMIT 1;
+END//
+DELIMITER ;
+
+-- Dumping structure for procedure db_retail.sp_get_produk_terbaik_periode
+DELIMITER //
+CREATE PROCEDURE `sp_get_produk_terbaik_periode`(
+	IN `p_periode_bulan` INT,
+	IN `p_periode_tahun` YEAR
+)
+BEGIN
+    DECLARE total_rows INT;   -- Variabel untuk menyimpan jumlah baris hasil query
+
+    -- Cek apakah ada transaksi pada bulan dan tahun yang diminta
+    SELECT COUNT(*) INTO total_rows
+    FROM tb_detail_transaksi dt
+    JOIN tb_transaksi t ON dt.id_transaksi = t.id_transaksi
+    WHERE MONTH(t.date_transaksi) = p_periode_bulan
+    AND YEAR(t.date_transaksi) = p_periode_tahun;
+
+    -- Jika tidak ada transaksi, tampilkan pesan
+    IF total_rows = 0 THEN
+        SELECT 'Tidak Ada Transaksi' AS message;
+    ELSE
+        -- Jika ada transaksi, tampilkan produk dengan penjualan tertinggi
+        SELECT p.name_produk
+        FROM tb_detail_transaksi dt
+        JOIN tb_produk p ON dt.id_produk = p.id_produk
+        JOIN tb_transaksi t ON dt.id_transaksi = t.id_transaksi
+        WHERE MONTH(t.date_transaksi) = p_periode_bulan
+        AND YEAR(t.date_transaksi) = p_periode_tahun
+        GROUP BY p.id_produk
+        LIMIT 1;  -- Mengambil 3 produk dengan penjualan tertinggi
+    END IF;
+END//
+DELIMITER ;
+
+-- Dumping structure for procedure db_retail.sp_get_profit_perbulan
+DELIMITER //
+CREATE PROCEDURE `sp_get_profit_perbulan`(
+	IN `p_periode_bulan` INT,
+	IN `p_periode_tahun` YEAR
+)
+BEGIN
+	SELECT 
+        IFNULL(SUM((p.price_produk - p.modal_produk) * dt.quantity_produk), 0) AS totalKeuntunganBulanIni
+    FROM tb_detail_transaksi dt
+    JOIN tb_produk p ON dt.id_produk = p.id_produk
+    JOIN tb_transaksi t ON dt.id_transaksi = t.id_transaksi
+    WHERE MONTH(t.date_transaksi) = p_periode_bulan
+    AND YEAR(t.date_transaksi) = p_periode_tahun;
+END//
+DELIMITER ;
+
+-- Dumping structure for procedure db_retail.sp_get_total_produk_terjual_periode
+DELIMITER //
+CREATE PROCEDURE `sp_get_total_produk_terjual_periode`(
+	IN `p_periode_bulan` INT,
+	IN `p_periode_tahun` YEAR
+)
+BEGIN
+	SELECT IFNULL(SUM(quantity_transaksi), 0) AS produkTerjualBulanIni
+	FROM tb_transaksi
+	WHERE MONTH(date_transaksi) = p_periode_bulan
+	AND YEAR(date_transaksi) = p_periode_tahun;
+END//
+DELIMITER ;
+
+-- Dumping structure for procedure db_retail.sp_get_total_transaksi_periode
+DELIMITER //
+CREATE PROCEDURE `sp_get_total_transaksi_periode`(
+	IN `p_periode_bulan` INT,
+	IN `p_periode_tahun` INT
+)
+BEGIN
+	SELECT IFNULL(COUNT(id_transaksi), 0) AS totalTransaksiBulanIni
+	FROM tb_transaksi
+	WHERE MONTH(date_transaksi) = p_periode_bulan
+	AND YEAR(date_transaksi) = p_periode_tahun;
 END//
 DELIMITER ;
 
@@ -511,34 +600,19 @@ DELIMITER ;
 -- Dumping structure for procedure db_retail.sp_produk_add
 DELIMITER //
 CREATE PROCEDURE `sp_produk_add`(
-	IN `p_nama_kategori` VARCHAR(50),
-	IN `p_nama_subkategori` VARCHAR(50),
+	IN `p_id_kategori` VARCHAR(50),
+	IN `p_id_subkategori` VARCHAR(50),
 	IN `p_nama_produk` VARCHAR(255),
 	IN `p_harga_produk` DECIMAL(10,0)
 )
 BEGIN
-    DECLARE v_id_kategori INT;
-    DECLARE v_id_subkategori INT;
-
-    -- Mencari id_kategori berdasarkan nama kategori
-    SELECT id_kategori INTO v_id_kategori
-    FROM tb_kategori
-    WHERE name_kategori = p_nama_kategori
-    LIMIT 1;  -- Pastikan hanya mengambil satu id_kategori
-    
-    -- Mencari id_kategori berdasarkan nama kategori
-    SELECT id_subkategori INTO v_id_subkategori
-    FROM tb_subkategori
-    WHERE name_subkategori = p_nama_subkategori
-    LIMIT 1;  -- Pastikan hanya mengambil satu id_kategori
-
     -- Memastikan id_kategori ditemukan
-    IF v_id_kategori IS NOT NULL THEN
+    IF p_id_kategori IS NOT NULL THEN
         -- Melakukan INSERT ke tb_produk
         INSERT INTO tb_produk
             (id_kategori, id_subkategori, name_produk, price_produk, stock_produk)
         VALUES 
-            (v_id_kategori, v_id_subkategori, p_nama_produk, p_harga_produk, 0);
+            (p_id_kategori, p_id_subkategori, p_nama_produk, p_harga_produk, 0);
     ELSE
         -- Menangani kasus jika kategori tidak ditemukan
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Kategori tidak ditemukan';
@@ -630,7 +704,7 @@ CREATE TABLE IF NOT EXISTS `tb_detail_transaksi` (
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table database yang menyimpan detail lengkap dari setiap transaksi (nama produk, jumlah produk, harga produk)';
 
 -- Dumping data for table db_retail.tb_detail_transaksi: ~4 rows (approximately)
-INSERT INTO `tb_detail_transaksi` (`id_detail_transaksi`, `id_transaksi`, `id_produk`, `quantity_produk`, `date_transaksi`) VALUES
+INSERT IGNORE INTO `tb_detail_transaksi` (`id_detail_transaksi`, `id_transaksi`, `id_produk`, `quantity_produk`, `date_transaksi`) VALUES
 	(1, 1, 1, 1, '2024-09-09 03:59:15'),
 	(2, 1, 2, 1, '2024-09-09 03:59:15'),
 	(3, 2, 2, 1, '2024-09-09 03:59:15'),
@@ -643,12 +717,12 @@ CREATE TABLE IF NOT EXISTS `tb_kategori` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id_kategori`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Data Utama Kategori';
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Data Utama Kategori';
 
--- Dumping data for table db_retail.tb_kategori: ~1 rows (approximately)
-INSERT INTO `tb_kategori` (`id_kategori`, `name_kategori`, `created_at`, `updated_at`) VALUES
-	(1, 'Atasan', '2024-09-04 04:46:54', '2024-09-04 04:46:54'),
-	(2, 'Bawahan', '2024-09-04 04:47:11', '2024-09-04 04:47:11');
+-- Dumping data for table db_retail.tb_kategori: ~2 rows (approximately)
+INSERT IGNORE INTO `tb_kategori` (`id_kategori`, `name_kategori`, `created_at`, `updated_at`) VALUES
+	(1, 'Dessertt', '2024-09-04 04:46:54', '2024-10-01 08:27:15'),
+	(2, 'Minuman', '2024-09-04 04:47:11', '2024-10-01 03:54:47');
 
 -- Dumping structure for table db_retail.tb_laporan_keuangan
 CREATE TABLE IF NOT EXISTS `tb_laporan_keuangan` (
@@ -676,7 +750,7 @@ CREATE TABLE IF NOT EXISTS `tb_log_aktivitas` (
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Aktifitas Pengguna';
 
 -- Dumping data for table db_retail.tb_log_aktivitas: ~2 rows (approximately)
-INSERT INTO `tb_log_aktivitas` (`id_log`, `id_pengguna`, `activity_log`, `date_log`) VALUES
+INSERT IGNORE INTO `tb_log_aktivitas` (`id_log`, `id_pengguna`, `activity_log`, `date_log`) VALUES
 	(1, 1, 'Add Item to Product', '2024-09-04 04:51:19'),
 	(2, 1, 'Transaction', '2024-09-09 01:14:27');
 
@@ -690,11 +764,12 @@ CREATE TABLE IF NOT EXISTS `tb_pelanggan` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id_pelanggan`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Data Pelanggan (Member) dan Diperlukan Register';
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Data Pelanggan (Member) dan Diperlukan Register';
 
 -- Dumping data for table db_retail.tb_pelanggan: ~0 rows (approximately)
-INSERT INTO `tb_pelanggan` (`id_pelanggan`, `name_pelanggan`, `contact_pelanggan`, `address_pelanggan`, `loyalty_points`, `created_at`, `updated_at`) VALUES
-	(1, 'Non-Member', '081210295730', 'Bandung, Jawa Barat', 1, '2024-09-04 04:48:59', '2024-09-04 04:48:59');
+INSERT IGNORE INTO `tb_pelanggan` (`id_pelanggan`, `name_pelanggan`, `contact_pelanggan`, `address_pelanggan`, `loyalty_points`, `created_at`, `updated_at`) VALUES
+	(1, 'Non-Member', '-', '-', 0, '2024-09-04 04:48:59', '2024-10-08 06:48:39'),
+	(2, 'Putra', '081210295730', 'Bandung, Jawa Barat', 1, '2024-10-08 06:48:07', '2024-10-08 06:48:14');
 
 -- Dumping structure for table db_retail.tb_pemasok
 CREATE TABLE IF NOT EXISTS `tb_pemasok` (
@@ -705,11 +780,12 @@ CREATE TABLE IF NOT EXISTS `tb_pemasok` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id_pemasok`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Data Pemasok (Supplier)';
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Data Pemasok (Supplier)';
 
 -- Dumping data for table db_retail.tb_pemasok: ~0 rows (approximately)
-INSERT INTO `tb_pemasok` (`id_pemasok`, `name_pemasok`, `contact_pemasok`, `address_pemasok`, `created_at`, `updated_at`) VALUES
-	(1, 'Disclose', '081234567832', 'Kopo, Bandung', '2024-09-04 04:50:03', '2024-09-23 04:44:42');
+INSERT IGNORE INTO `tb_pemasok` (`id_pemasok`, `name_pemasok`, `contact_pemasok`, `address_pemasok`, `created_at`, `updated_at`) VALUES
+	(1, 'Disclose', '081234567832', 'Kopo, Bandung', '2024-09-04 04:50:03', '2024-09-23 04:44:42'),
+	(2, 'Scndry', '081210295739', 'gatauuuu\n', '2024-10-02 08:16:38', '2024-10-02 08:24:04');
 
 -- Dumping structure for table db_retail.tb_pengguna
 CREATE TABLE IF NOT EXISTS `tb_pengguna` (
@@ -722,18 +798,19 @@ CREATE TABLE IF NOT EXISTS `tb_pengguna` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id_pengguna`),
   UNIQUE KEY `username_pengguna` (`username_pengguna`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Data Pengguna (Admin, Petugas, Manajer)';
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Data Pengguna (Admin, Petugas, Manajer)';
 
 -- Dumping data for table db_retail.tb_pengguna: ~3 rows (approximately)
-INSERT INTO `tb_pengguna` (`id_pengguna`, `name_pengguna`, `username_pengguna`, `password_pengguna`, `role_pengguna`, `created_at`, `updated_at`) VALUES
-	(1, 'Admin Putra', 'admin', 'bced6fd149cfcdb85741768da12e41c6', 'admin', '2024-09-04 04:44:24', '2024-09-23 02:56:08'),
-	(2, 'Kasir Putra', 'kasir', '1bd555d23697f9f6923c753337616333', 'kasir', '2024-09-04 04:45:01', '2024-09-23 02:56:27'),
+INSERT IGNORE INTO `tb_pengguna` (`id_pengguna`, `name_pengguna`, `username_pengguna`, `password_pengguna`, `role_pengguna`, `created_at`, `updated_at`) VALUES
+	(1, 'Admin Putraa', 'admin', 'bced6fd149cfcdb85741768da12e41c6', 'admin', '2024-09-04 04:44:24', '2024-10-02 07:49:04'),
+	(2, 'Kasir Putraa', 'kasir', '1bd555d23697f9f6923c753337616333', 'kasir', '2024-09-04 04:45:01', '2024-10-02 07:49:33'),
 	(3, 'Manajer Putra', 'manajer', '29a39d4c826e68d0a7c62e791f5bb780', 'manajer', '2024-09-04 04:45:33', '2024-09-23 03:02:24');
 
 -- Dumping structure for table db_retail.tb_produk
 CREATE TABLE IF NOT EXISTS `tb_produk` (
   `id_produk` int NOT NULL AUTO_INCREMENT,
   `name_produk` varchar(255) NOT NULL,
+  `modal_produk` decimal(10,0) DEFAULT NULL,
   `price_produk` decimal(10,0) NOT NULL,
   `stock_produk` int NOT NULL,
   `id_kategori` int DEFAULT NULL,
@@ -745,13 +822,13 @@ CREATE TABLE IF NOT EXISTS `tb_produk` (
   KEY `id_subkategori` (`id_subkategori`),
   CONSTRAINT `tb_produk_ibfk_1` FOREIGN KEY (`id_kategori`) REFERENCES `tb_kategori` (`id_kategori`),
   CONSTRAINT `tb_produk_ibfk_2` FOREIGN KEY (`id_subkategori`) REFERENCES `tb_subkategori` (`id_subkategori`)
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Data Produk Secara Lengkap';
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Data Produk Secara Lengkap';
 
--- Dumping data for table db_retail.tb_produk: ~18 rows (approximately)
-INSERT INTO `tb_produk` (`id_produk`, `name_produk`, `price_produk`, `stock_produk`, `id_kategori`, `id_subkategori`, `created_at`, `updated_at`) VALUES
-	(1, 'Jaket Hitam', 299999, 6, 1, 1, '2024-09-04 04:51:19', '2024-09-27 06:39:14'),
-	(2, 'Ripped Jeans Lutut', 499999, 6, 2, 3, '2024-09-04 04:51:58', '2024-09-27 06:39:21'),
-	(3, 'Jaket Putih', 299999, 10, 1, 1, '2024-09-23 04:35:10', '2024-09-27 06:22:56');
+-- Dumping data for table db_retail.tb_produk: ~3 rows (approximately)
+INSERT IGNORE INTO `tb_produk` (`id_produk`, `name_produk`, `modal_produk`, `price_produk`, `stock_produk`, `id_kategori`, `id_subkategori`, `created_at`, `updated_at`) VALUES
+	(1, 'Jaket Hitam', 199999, 299999, 10, 1, 1, '2024-09-04 04:51:19', '2024-10-08 03:43:35'),
+	(2, 'Ripped Jeans Lutut', 249999, 499999, 10, 2, 3, '2024-09-04 04:51:58', '2024-10-08 03:43:40'),
+	(3, 'Sweater Heather', 109999, 999999, 2, 1, 1, '2024-10-01 02:32:32', '2024-10-08 04:03:45');
 
 -- Dumping structure for table db_retail.tb_stok
 CREATE TABLE IF NOT EXISTS `tb_stok` (
@@ -767,7 +844,7 @@ CREATE TABLE IF NOT EXISTS `tb_stok` (
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Laporan Aktifitas Stok Produk';
 
 -- Dumping data for table db_retail.tb_stok: ~2 rows (approximately)
-INSERT INTO `tb_stok` (`id_stok`, `id_produk`, `semula_stok`, `quantity_stok`, `source_stok`, `date_stok`) VALUES
+INSERT IGNORE INTO `tb_stok` (`id_stok`, `id_produk`, `semula_stok`, `quantity_stok`, `source_stok`, `date_stok`) VALUES
 	(1, 1, 2, 3, 'penerimaan', '2024-09-04 04:52:54'),
 	(2, 2, 4, 1, 'penjualan', '2024-09-04 04:53:36');
 
@@ -781,14 +858,15 @@ CREATE TABLE IF NOT EXISTS `tb_subkategori` (
   PRIMARY KEY (`id_subkategori`),
   KEY `id_kategori` (`id_kategori`),
   CONSTRAINT `tb_subkategori_ibfk_1` FOREIGN KEY (`id_kategori`) REFERENCES `tb_kategori` (`id_kategori`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Data Sub Kategori';
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Data Sub Kategori';
 
 -- Dumping data for table db_retail.tb_subkategori: ~4 rows (approximately)
-INSERT INTO `tb_subkategori` (`id_subkategori`, `name_subkategori`, `id_kategori`, `created_at`, `updated_at`) VALUES
-	(1, 'Jaket', 1, '2024-09-04 04:47:27', '2024-09-04 04:47:28'),
+INSERT IGNORE INTO `tb_subkategori` (`id_subkategori`, `name_subkategori`, `id_kategori`, `created_at`, `updated_at`) VALUES
+	(1, 'ice cream', 1, '2024-09-04 04:47:27', '2024-10-01 07:01:04'),
 	(2, 'Sweater', 1, '2024-09-04 04:47:43', '2024-09-04 04:47:43'),
 	(3, 'Celana Chinos', 2, '2024-09-04 04:47:57', '2024-09-04 04:52:28'),
-	(4, 'Celana Jeans', 2, '2024-09-04 04:48:13', '2024-09-04 04:52:22');
+	(4, 'Celana Jeans', 2, '2024-09-04 04:48:13', '2024-09-04 04:52:22'),
+	(7, 'Seger', 2, '2024-10-02 03:52:14', '2024-10-02 03:52:14');
 
 -- Dumping structure for table db_retail.tb_transaksi
 CREATE TABLE IF NOT EXISTS `tb_transaksi` (
@@ -808,7 +886,7 @@ CREATE TABLE IF NOT EXISTS `tb_transaksi` (
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Table Database yang Menyimpan Keseluruhan Transaksi';
 
 -- Dumping data for table db_retail.tb_transaksi: ~2 rows (approximately)
-INSERT INTO `tb_transaksi` (`id_transaksi`, `id_pelanggan`, `id_pengguna`, `quantity_transaksi`, `total_payment`, `total_price`, `total_change`, `date_transaksi`) VALUES
+INSERT IGNORE INTO `tb_transaksi` (`id_transaksi`, `id_pelanggan`, `id_pengguna`, `quantity_transaksi`, `total_payment`, `total_price`, `total_change`, `date_transaksi`) VALUES
 	(1, 1, 1, 2, 799998, 799998, 0, '2024-09-09 01:14:27'),
 	(2, 1, 2, 2, 999998, 999998, 0, '2024-09-09 02:14:27');
 
