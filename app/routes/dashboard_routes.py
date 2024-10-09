@@ -69,8 +69,8 @@ def get_data_dashboard():
         print(p_periode_bulan, p_periode_tahun)
         # Panggil stored procedure untuk total produk terjual
         cursor.callproc('sp_get_total_produk_terjual_periode', [p_periode_bulan, p_periode_tahun])
-        result = cursor.fetchone()
-        v_total_produk_terjual = result[0] if result else 0
+        result = cursor.fetchall()
+        v_total_produk_terjual = result[0][0] if result else 0
 
         # Panggil stored procedure untuk total transaksi
         cursor.callproc('sp_get_total_transaksi_periode', [p_periode_bulan, p_periode_tahun])
@@ -93,9 +93,9 @@ def get_data_dashboard():
         v_produk_stok_rendah = result[0] if result else 'Tidak Ada Produk dengan Stok Rendah'
 
         # Panggil stored procedure untuk total pelanggan
-        cursor.callproc('sp_get_total_pelanggan')
-        result = cursor.fetchone()
-        v_total_member = result[0] if result else 0
+        # cursor.callproc('sp_get_total_pelanggan')
+        # result = cursor.fetchone()
+        # v_total_member = result[0] if result else 0
 
         cursor.close()
 
@@ -109,8 +109,7 @@ def get_data_dashboard():
                 'v_total_transaksi_periode': v_total_transaksi_periode,
                 'v_total_keuntungan_periode': v_total_keuntungan_periode,
                 'v_produk_stok_rendah': v_produk_stok_rendah,
-                'v_produk_best_seller': v_produk_best_seller,
-                'v_total_member': v_total_member
+                'v_produk_best_seller': v_produk_best_seller
             })
         ])
 
